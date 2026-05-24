@@ -1,5 +1,6 @@
 import { contextBridge } from "electron";
 import { electronAPI } from "@electron-toolkit/preload";
+import type { Bookmark, BrowserSettings } from "../shared/profile";
 
 // TopBar specific APIs
 const topBarAPI = {
@@ -58,6 +59,28 @@ const topBarAPI = {
   },
   removeWindowStateChangedListener: () => {
     electronAPI.ipcRenderer.removeAllListeners("window-state-changed");
+  },
+
+  // Profile
+  getSettings: () => electronAPI.ipcRenderer.invoke("profile-get-settings"),
+  saveSettings: (settings: Partial<BrowserSettings>) =>
+    electronAPI.ipcRenderer.invoke("profile-save-settings", settings),
+  getBookmarks: () => electronAPI.ipcRenderer.invoke("profile-get-bookmarks"),
+  onSettingsUpdated: (callback: (settings: BrowserSettings) => void) => {
+    electronAPI.ipcRenderer.on("settings-updated", (_, settings) =>
+      callback(settings),
+    );
+  },
+  removeSettingsUpdatedListener: () => {
+    electronAPI.ipcRenderer.removeAllListeners("settings-updated");
+  },
+  onBookmarksUpdated: (callback: (bookmarks: Bookmark[]) => void) => {
+    electronAPI.ipcRenderer.on("bookmarks-updated", (_, bookmarks) =>
+      callback(bookmarks),
+    );
+  },
+  removeBookmarksUpdatedListener: () => {
+    electronAPI.ipcRenderer.removeAllListeners("bookmarks-updated");
   },
 };
 

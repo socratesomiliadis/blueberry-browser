@@ -1,6 +1,6 @@
 import type { BaseWindow, Rectangle } from "electron";
 
-export const TOP_BAR_HEIGHT = 88;
+export const TOP_BAR_HEIGHT = 120;
 export const SIDEBAR_WIDTH = 400;
 
 function getContentDimensions(baseWindow: BaseWindow): {

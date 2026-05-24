@@ -1,4 +1,5 @@
 import { NativeImage, WebContents, WebContentsView } from "electron";
+import { BLUEBERRY_START_URL } from "../shared/profile";
 
 export class Tab {
   private webContentsView: WebContentsView;
@@ -6,11 +7,17 @@ export class Tab {
   private _title: string;
   private _url: string;
   private _isVisible: boolean = false;
+  private getInternalPageHtml: (url: string) => string;
 
-  constructor(id: string, url: string = "https://www.google.com") {
+  constructor(
+    id: string,
+    url: string = BLUEBERRY_START_URL,
+    getInternalPageHtml: (url: string) => string = () => "",
+  ) {
     this._id = id;
     this._url = url;
     this._title = "New Tab";
+    this.getInternalPageHtml = getInternalPageHtml;
 
     // Create the WebContentsView for web content only
     this.webContentsView = new WebContentsView({
@@ -37,10 +44,18 @@ export class Tab {
 
     // Update URL when navigation occurs
     this.webContentsView.webContents.on("did-navigate", (_, url) => {
+      if (this._url === BLUEBERRY_START_URL && url.startsWith("data:")) {
+        return;
+      }
+
       this._url = url;
     });
 
     this.webContentsView.webContents.on("did-navigate-in-page", (_, url) => {
+      if (this._url === BLUEBERRY_START_URL && url.startsWith("data:")) {
+        return;
+      }
+
       this._url = url;
     });
   }
@@ -103,6 +118,13 @@ export class Tab {
 
   loadURL(url: string): Promise<void> {
     this._url = url;
+    if (url === BLUEBERRY_START_URL) {
+      this._title = "Blueberry Start";
+      const html = this.getInternalPageHtml(url);
+      const dataUrl = `data:text/html;charset=utf-8,${encodeURIComponent(html)}`;
+      return this.webContentsView.webContents.loadURL(dataUrl);
+    }
+
     return this.webContentsView.webContents.loadURL(url);
   }
 

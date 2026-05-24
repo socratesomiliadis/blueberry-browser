@@ -45,7 +45,7 @@ export const AddressBar: React.FC = () => {
     let finalUrl = url.trim();
 
     // Add protocol if missing
-    if (!finalUrl.startsWith("http://") && !finalUrl.startsWith("https://")) {
+    if (!/^[a-z][a-z0-9+.-]*:\/\//i.test(finalUrl)) {
       // Check if it looks like a domain
       if (finalUrl.includes(".") && !finalUrl.includes(" ")) {
         finalUrl = `https://${finalUrl}`;
@@ -92,6 +92,7 @@ export const AddressBar: React.FC = () => {
   // Extract domain and title for display
   const getDomain = (): string => {
     if (!activeTab?.url) return "";
+    if (activeTab.url === "blueberry://start") return "Blueberry Start";
     try {
       const urlObj = new URL(activeTab.url);
       return urlObj.hostname.replace("www.", "");
@@ -102,6 +103,7 @@ export const AddressBar: React.FC = () => {
 
   const getPath = (): string => {
     if (!activeTab?.url) return "";
+    if (activeTab.url === "blueberry://start") return "";
     try {
       const urlObj = new URL(activeTab.url);
       return urlObj.pathname + urlObj.search + urlObj.hash;
@@ -112,6 +114,7 @@ export const AddressBar: React.FC = () => {
 
   const getFavicon = (): string | null => {
     if (!activeTab?.url) return null;
+    if (activeTab.url === "blueberry://start") return null;
     try {
       const domain = new URL(activeTab.url).hostname;
       return `https://www.google.com/s2/favicons?domain=${domain}&sz=32`;

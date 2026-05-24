@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { resolveDarkMode } from "../lib/appearance";
+import { useBrowserSettings } from "./useBrowserSettings";
 
 interface UseDarkModeResult {
   isDarkMode: boolean;
@@ -6,58 +7,13 @@ interface UseDarkModeResult {
 }
 
 export const useDarkMode = (): UseDarkModeResult => {
-  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
-    // Check if dark mode preference exists in localStorage
-    const savedMode = localStorage.getItem("darkMode");
-    if (savedMode !== null) {
-      return JSON.parse(savedMode) === true;
-    }
-    // Otherwise check system preference
-    return window.matchMedia("(prefers-color-scheme: dark)").matches;
-  });
-
-  useEffect(() => {
-    // Apply or remove dark class on document root
-    if (isDarkMode) {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
-
-    // Save preference to localStorage
-    localStorage.setItem("darkMode", JSON.stringify(isDarkMode));
-
-    // Broadcast dark mode change to main process
-    if (window.electron) {
-      window.electron.ipcRenderer.send("dark-mode-changed", isDarkMode);
-    }
-  }, [isDarkMode]);
-
-  // Listen for dark mode changes from other windows
-  useEffect(() => {
-    const handleDarkModeUpdate = (
-      _event: unknown,
-      newDarkMode: boolean,
-    ): void => {
-      setIsDarkMode(newDarkMode);
-    };
-
-    if (window.electron) {
-      window.electron.ipcRenderer.on("dark-mode-updated", handleDarkModeUpdate);
-    }
-
-    return () => {
-      if (window.electron) {
-        window.electron.ipcRenderer.removeListener(
-          "dark-mode-updated",
-          handleDarkModeUpdate,
-        );
-      }
-    };
-  }, []);
+  const { settings, saveSettings } = useBrowserSettings();
+  const isDarkMode = resolveDarkMode(settings);
 
   const toggleDarkMode = (): void => {
-    setIsDarkMode(!isDarkMode);
+    saveSettings({ theme: isDarkMode ? "light" : "dark" }).catch((error) => {
+      console.error("Failed to toggle dark mode:", error);
+    });
   };
 
   return { isDarkMode, toggleDarkMode };

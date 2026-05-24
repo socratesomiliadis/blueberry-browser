@@ -1,4 +1,5 @@
 import { ElectronAPI } from "@electron-toolkit/preload";
+import type { Bookmark, BrowserSettings } from "../shared/profile";
 
 interface TabInfo {
   id: string;
@@ -44,6 +45,17 @@ interface TopBarAPI {
     callback: (state: { isMaximized: boolean }) => void,
   ) => void;
   removeWindowStateChangedListener: () => void;
+
+  // Profile
+  getSettings: () => Promise<BrowserSettings>;
+  saveSettings: (
+    settings: Partial<BrowserSettings>,
+  ) => Promise<BrowserSettings>;
+  getBookmarks: () => Promise<Bookmark[]>;
+  onSettingsUpdated: (callback: (settings: BrowserSettings) => void) => void;
+  removeSettingsUpdatedListener: () => void;
+  onBookmarksUpdated: (callback: (bookmarks: Bookmark[]) => void) => void;
+  removeBookmarksUpdatedListener: () => void;
 }
 
 declare global {

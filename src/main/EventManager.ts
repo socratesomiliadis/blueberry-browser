@@ -1,5 +1,6 @@
 import { ipcMain, WebContents } from "electron";
 import type { Window } from "./Window";
+import { BLUEBERRY_START_URL, type BrowserSettings } from "../shared/profile";
 
 export class EventManager {
   private mainWindow: Window;
@@ -24,6 +25,9 @@ export class EventManager {
 
     // Window chrome events
     this.handleWindowEvents();
+
+    // Profile, onboarding, and settings events
+    this.handleProfileEvents();
 
     // Debug events
     this.handleDebugEvents();
@@ -249,6 +253,57 @@ export class EventManager {
     this.mainWindow.baseWindow.on("restore", () => this.broadcastWindowState());
   }
 
+  private handleProfileEvents(): void {
+    ipcMain.handle("profile-get-onboarding-state", () => {
+      return this.mainWindow.profileStore.getData().onboarding;
+    });
+
+    ipcMain.handle("profile-scan-bookmark-sources", () => {
+      return this.mainWindow.profileStore.scanBookmarkSources();
+    });
+
+    ipcMain.handle("profile-import-bookmarks", (_, sourceIds: string[]) => {
+      const result = this.mainWindow.profileStore.importBookmarks(sourceIds);
+      this.broadcastBookmarks();
+      this.reloadStartPageIfActive();
+      return result;
+    });
+
+    ipcMain.handle("profile-get-settings", () => {
+      return this.mainWindow.profileStore.getSettings();
+    });
+
+    ipcMain.handle(
+      "profile-save-settings",
+      (_, settings: Partial<BrowserSettings>) => {
+        const savedSettings =
+          this.mainWindow.profileStore.saveSettings(settings);
+        this.mainWindow.applySettings();
+        this.broadcastSettings(savedSettings);
+        this.reloadStartPageIfActive();
+        return savedSettings;
+      },
+    );
+
+    ipcMain.handle(
+      "profile-complete-onboarding",
+      (_, settings?: Partial<BrowserSettings>) => {
+        const profileData =
+          this.mainWindow.profileStore.completeOnboarding(settings);
+        this.mainWindow.applySettings();
+        this.mainWindow.hideOnboarding();
+        this.broadcastSettings(profileData.settings);
+        this.broadcastBookmarks();
+        this.reloadStartPageIfActive();
+        return profileData;
+      },
+    );
+
+    ipcMain.handle("profile-get-bookmarks", () => {
+      return this.mainWindow.profileStore.getBookmarks();
+    });
+  }
+
   private handleDebugEvents(): void {
     // Ping test
     ipcMain.on("ping", () => console.log("pong"));
@@ -265,6 +320,40 @@ export class EventManager {
       "window-state-changed",
       this.getWindowState(),
     );
+  }
+
+  private broadcastSettings(settings: BrowserSettings): void {
+    this.broadcastToChrome("settings-updated", settings);
+  }
+
+  private broadcastBookmarks(): void {
+    this.broadcastToChrome(
+      "bookmarks-updated",
+      this.mainWindow.profileStore.getBookmarks(),
+    );
+  }
+
+  private broadcastToChrome(channel: string, payload: unknown): void {
+    const webContents = [
+      this.mainWindow.topBar.view.webContents,
+      this.mainWindow.sidebar.view.webContents,
+      this.mainWindow.onboarding.view.webContents,
+    ];
+
+    for (const contents of webContents) {
+      if (!contents.isDestroyed()) {
+        contents.send(channel, payload);
+      }
+    }
+  }
+
+  private reloadStartPageIfActive(): void {
+    const activeTab = this.mainWindow.activeTab;
+    if (activeTab?.url === BLUEBERRY_START_URL) {
+      activeTab.loadURL(BLUEBERRY_START_URL).catch((error) => {
+        console.error("Failed to refresh start page:", error);
+      });
+    }
   }
 
   private broadcastDarkMode(sender: WebContents, isDarkMode: boolean): void {

@@ -2,11 +2,14 @@ import { BaseWindow, shell } from "electron";
 import { Tab } from "./Tab";
 import { TopBar } from "./TopBar";
 import { SideBar } from "./SideBar";
+import { Onboarding } from "./Onboarding";
+import { ProfileStore } from "./ProfileStore";
 import {
   getSlidingSidebarBoundsForVisibleWidth,
   getTabBoundsForSidebarWidth,
   SIDEBAR_WIDTH,
 } from "./Layout";
+import type { Bookmark } from "../shared/profile";
 
 const SIDEBAR_ANIMATION_DURATION_MS = 180;
 const SIDEBAR_ANIMATION_FRAME_MS = 1000 / 60;
@@ -26,6 +29,8 @@ export class Window {
   private tabCounter: number = 0;
   private _topBar: TopBar;
   private _sideBar: SideBar;
+  private _onboarding: Onboarding;
+  private _profileStore: ProfileStore;
   private sidebarAnimationTimer: ReturnType<typeof setTimeout> | null = null;
   private sidebarTargetVisible: boolean = true;
   private currentSidebarWidth: number = SIDEBAR_WIDTH;
@@ -52,11 +57,18 @@ export class Window {
 
     this._baseWindow.setMinimumSize(1000, 800);
 
+    this._profileStore = new ProfileStore();
+    this.sidebarTargetVisible =
+      this._profileStore.getSettings().sidebarDefaultOpen;
+    this.currentSidebarWidth = this.sidebarTargetVisible ? SIDEBAR_WIDTH : 0;
+
     this._topBar = new TopBar(this._baseWindow);
     this._sideBar = new SideBar(this._baseWindow);
+    this._onboarding = new Onboarding(this._baseWindow);
 
     // Set the window reference on the LLM client to avoid circular dependency
     this._sideBar.client.setWindow(this);
+    this.applySidebarLayout(this.currentSidebarWidth);
 
     // Create the first tab
     this.createTab();
@@ -65,6 +77,7 @@ export class Window {
     this._baseWindow.on("resize", () => {
       this.updateAllBounds();
       this._topBar.updateBounds();
+      this._onboarding.updateBounds();
       // Notify renderer of resize through active tab
       const bounds = this._baseWindow.getBounds();
       if (this.activeTab) {
@@ -118,7 +131,9 @@ export class Window {
   // Tab management methods
   createTab(url?: string): Tab {
     const tabId = `tab-${++this.tabCounter}`;
-    const tab = new Tab(tabId, url);
+    const tab = new Tab(tabId, url ?? this._profileStore.getNewTabUrl(), () =>
+      this.getStartPageHtml(),
+    );
     this.configureTabWebContents(tab);
 
     // Add the tab's WebContentsView to the window
@@ -367,6 +382,21 @@ export class Window {
     return this.setSidebarVisible(!this.sidebarTargetVisible);
   }
 
+  showOnboardingIfNeeded(): void {
+    if (!this._profileStore.getData().onboarding.completed) {
+      this._onboarding.show();
+    }
+  }
+
+  hideOnboarding(): void {
+    this._onboarding.hide();
+  }
+
+  applySettings(): void {
+    const settings = this._profileStore.getSettings();
+    this.setSidebarVisible(settings.sidebarDefaultOpen);
+  }
+
   // Public method to update all bounds when sidebar is toggled
   updateAllBounds(): void {
     this.applySidebarLayout(this.currentSidebarWidth);
@@ -375,6 +405,14 @@ export class Window {
   // Getter for sidebar to access from main process
   get sidebar(): SideBar {
     return this._sideBar;
+  }
+
+  get onboarding(): Onboarding {
+    return this._onboarding;
+  }
+
+  get profileStore(): ProfileStore {
+    return this._profileStore;
   }
 
   // Getter for topBar to access from main process
@@ -390,5 +428,218 @@ export class Window {
   // Getter for baseWindow to access from Menu
   get baseWindow(): BaseWindow {
     return this._baseWindow;
+  }
+
+  private getStartPageHtml(): string {
+    const settings = this._profileStore.getSettings();
+    const bookmarks = this._profileStore.getBookmarks().slice(0, 48);
+    const densityPadding =
+      settings.density === "compact"
+        ? "18px"
+        : settings.density === "comfortable"
+          ? "34px"
+          : "26px";
+    const accent = this.getAccentColor(settings.accent);
+    const bookmarkCards = bookmarks
+      .map((bookmark) => this.renderStartBookmark(bookmark))
+      .join("");
+
+    return `<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Blueberry Start</title>
+    <style>
+      :root {
+        color-scheme: ${settings.theme === "dark" ? "dark" : "light"};
+        --brand: ${accent};
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        color: ${settings.theme === "dark" ? "#f8fafc" : "#141414"};
+        background:
+          radial-gradient(circle at top left, color-mix(in srgb, var(--brand) 22%, transparent), transparent 34rem),
+          linear-gradient(135deg, ${settings.theme === "dark" ? "#141414" : "#ffffff"} 0%, ${settings.theme === "dark" ? "#202020" : "#f6f8fb"} 100%);
+      }
+      main {
+        width: min(960px, calc(100vw - 48px));
+        margin: 0 auto;
+        padding: ${densityPadding} 0 48px;
+      }
+      .hero {
+        padding: 42px 0 28px;
+      }
+      h1 {
+        margin: 0 0 12px;
+        font-size: clamp(2.3rem, 5vw, 5rem);
+        letter-spacing: 0;
+        line-height: .95;
+      }
+      p {
+        margin: 0;
+        color: ${settings.theme === "dark" ? "#b7bcc5" : "#5f6673"};
+        font-size: 1rem;
+      }
+      form {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-top: 28px;
+        max-width: 680px;
+      }
+      input {
+        flex: 1;
+        height: 48px;
+        border: 1px solid ${settings.theme === "dark" ? "#34383f" : "#dfe3ea"};
+        border-radius: 8px;
+        padding: 0 16px;
+        font-size: 1rem;
+        color: inherit;
+        background: ${settings.theme === "dark" ? "rgba(255,255,255,.06)" : "rgba(255,255,255,.86)"};
+        outline: none;
+      }
+      input:focus {
+        border-color: var(--brand);
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 22%, transparent);
+      }
+      button {
+        height: 48px;
+        border: 0;
+        border-radius: 8px;
+        padding: 0 18px;
+        color: white;
+        background: var(--brand);
+        font-weight: 650;
+        cursor: pointer;
+      }
+      .section-title {
+        margin: 18px 0 14px;
+        font-size: .76rem;
+        font-weight: 750;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+        color: ${settings.theme === "dark" ? "#8f96a3" : "#697181"};
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        gap: 10px;
+      }
+      a.bookmark {
+        display: block;
+        min-height: 84px;
+        border: 1px solid ${settings.theme === "dark" ? "rgba(255,255,255,.09)" : "rgba(20,20,20,.08)"};
+        border-radius: 8px;
+        padding: 13px;
+        color: inherit;
+        text-decoration: none;
+        background: ${settings.theme === "dark" ? "rgba(255,255,255,.05)" : "rgba(255,255,255,.72)"};
+      }
+      a.bookmark:hover {
+        border-color: color-mix(in srgb, var(--brand) 45%, transparent);
+        transform: translateY(-1px);
+      }
+      .bookmark strong, .bookmark span {
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .bookmark strong { font-size: .92rem; }
+      .bookmark span {
+        margin-top: 8px;
+        color: ${settings.theme === "dark" ? "#9ca3af" : "#697181"};
+        font-size: .77rem;
+      }
+      .empty {
+        border: 1px dashed ${settings.theme === "dark" ? "#3f454f" : "#cfd5df"};
+        border-radius: 8px;
+        padding: 22px;
+        color: ${settings.theme === "dark" ? "#9ca3af" : "#697181"};
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section class="hero">
+        <h1>Blueberry</h1>
+        <p>Your imported bookmarks and favorite places are ready when you are.</p>
+        <form id="search">
+          <input id="query" aria-label="Search or enter address" placeholder="Search or enter address" autofocus />
+          <button type="submit">Go</button>
+        </form>
+      </section>
+      <section>
+        <div class="section-title">Bookmarks</div>
+        ${
+          bookmarkCards
+            ? `<div class="grid">${bookmarkCards}</div>`
+            : `<div class="empty">Import bookmarks during onboarding to fill this space.</div>`
+        }
+      </section>
+    </main>
+    <script>
+      document.getElementById("search").addEventListener("submit", function (event) {
+        event.preventDefault();
+        var value = document.getElementById("query").value.trim();
+        if (!value) return;
+        var target = value;
+        if (!/^https?:\\/\\//i.test(target)) {
+          target = target.indexOf(".") > -1 && target.indexOf(" ") === -1
+            ? "https://" + target
+            : "https://www.google.com/search?q=" + encodeURIComponent(target);
+        }
+        window.location.href = target;
+      });
+    </script>
+  </body>
+</html>`;
+  }
+
+  private renderStartBookmark(bookmark: Bookmark): string {
+    const host = this.getBookmarkHost(bookmark.url);
+    return `<a class="bookmark" href="${this.escapeAttribute(bookmark.url)}">
+      <strong>${this.escapeHtml(bookmark.title)}</strong>
+      <span>${this.escapeHtml(host)}</span>
+    </a>`;
+  }
+
+  private getBookmarkHost(url: string): string {
+    try {
+      return new URL(url).hostname.replace(/^www\./, "");
+    } catch {
+      return url;
+    }
+  }
+
+  private getAccentColor(accent: string): string {
+    switch (accent) {
+      case "grape":
+        return "#8b5cf6";
+      case "mint":
+        return "#0f9f7f";
+      case "sunset":
+        return "#f97316";
+      case "blueberry":
+      default:
+        return "#4f46e5";
+    }
+  }
+
+  private escapeHtml(value: string): string {
+    return value
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#39;");
+  }
+
+  private escapeAttribute(value: string): string {
+    return this.escapeHtml(value);
   }
 }
