@@ -2,7 +2,22 @@ import { BaseWindow, shell } from "electron";
 import { Tab } from "./Tab";
 import { TopBar } from "./TopBar";
 import { SideBar } from "./SideBar";
-import { getTabBounds } from "./Layout";
+import {
+  getSlidingSidebarBoundsForVisibleWidth,
+  getTabBoundsForSidebarWidth,
+  SIDEBAR_WIDTH,
+} from "./Layout";
+
+const SIDEBAR_ANIMATION_DURATION_MS = 180;
+const SIDEBAR_ANIMATION_FRAME_MS = 1000 / 60;
+
+function easeOutCubic(progress: number): number {
+  return 1 - Math.pow(1 - progress, 3);
+}
+
+function easeInCubic(progress: number): number {
+  return progress * progress * progress;
+}
 
 export class Window {
   private _baseWindow: BaseWindow;
@@ -11,6 +26,9 @@ export class Window {
   private tabCounter: number = 0;
   private _topBar: TopBar;
   private _sideBar: SideBar;
+  private sidebarAnimationTimer: ReturnType<typeof setTimeout> | null = null;
+  private sidebarTargetVisible: boolean = true;
+  private currentSidebarWidth: number = SIDEBAR_WIDTH;
 
   constructor() {
     const platformWindowOptions =
@@ -45,9 +63,8 @@ export class Window {
 
     // Set up window resize handler
     this._baseWindow.on("resize", () => {
-      this.updateTabBounds();
+      this.updateAllBounds();
       this._topBar.updateBounds();
-      this._sideBar.updateBounds();
       // Notify renderer of resize through active tab
       const bounds = this._baseWindow.getBounds();
       if (this.activeTab) {
@@ -70,6 +87,8 @@ export class Window {
 
   private setupEventListeners(): void {
     this._baseWindow.on("closed", () => {
+      this.clearSidebarAnimation();
+
       // Clean up all tabs when window is closed
       this.tabsMap.forEach((tab) => tab.destroy());
       this.tabsMap.clear();
@@ -107,7 +126,7 @@ export class Window {
 
     // Set the bounds to fill the content area below the topbar.
     tab.view.setBounds(
-      getTabBounds(this._baseWindow, this._sideBar.getIsVisible()),
+      getTabBoundsForSidebarWidth(this._baseWindow, this.currentSidebarWidth),
     );
 
     // Store the tab
@@ -171,6 +190,9 @@ export class Window {
     }
 
     // Show the new active tab
+    tab.view.setBounds(
+      getTabBoundsForSidebarWidth(this._baseWindow, this.currentSidebarWidth),
+    );
     tab.show();
     this.activeTabId = tabId;
 
@@ -235,17 +257,119 @@ export class Window {
   }
 
   // Handle window resize to update tab bounds
-  private updateTabBounds(): void {
-    const bounds = getTabBounds(this._baseWindow, this._sideBar.getIsVisible());
-    this.tabsMap.forEach((tab) => {
+  private updateTabBounds(
+    sidebarWidth: number = this.currentSidebarWidth,
+    updateAllTabs: boolean = true,
+  ): void {
+    const bounds = getTabBoundsForSidebarWidth(this._baseWindow, sidebarWidth);
+    const tabsToUpdate =
+      updateAllTabs || !this.activeTab
+        ? this.tabsMap.values()
+        : [this.activeTab];
+
+    Array.from(tabsToUpdate).forEach((tab) => {
       tab.view.setBounds(bounds);
     });
   }
 
+  private applySidebarLayout(
+    sidebarWidth: number,
+    updateAllTabs: boolean = true,
+  ): void {
+    const clampedSidebarWidth = Math.min(
+      Math.max(0, sidebarWidth),
+      SIDEBAR_WIDTH,
+    );
+
+    this.currentSidebarWidth = clampedSidebarWidth;
+    this.updateTabBounds(clampedSidebarWidth, updateAllTabs);
+
+    if (clampedSidebarWidth > 0 || this.sidebarTargetVisible) {
+      this._sideBar.prepareToShow();
+      this._sideBar.setAnimatedBounds(
+        getSlidingSidebarBoundsForVisibleWidth(
+          this._baseWindow,
+          clampedSidebarWidth,
+        ),
+      );
+    } else {
+      this._sideBar.finishHide();
+    }
+  }
+
+  private clearSidebarAnimation(): void {
+    if (!this.sidebarAnimationTimer) return;
+
+    clearTimeout(this.sidebarAnimationTimer);
+    this.sidebarAnimationTimer = null;
+  }
+
+  private broadcastSidebarVisibility(): void {
+    this._topBar.view.webContents.send("sidebar-visibility-changed", {
+      isVisible: this.sidebarTargetVisible,
+    });
+  }
+
+  setSidebarVisible(visible: boolean): boolean {
+    this.clearSidebarAnimation();
+    this.sidebarTargetVisible = visible;
+    this.broadcastSidebarVisibility();
+
+    const startWidth = this.currentSidebarWidth;
+    const endWidth = visible ? SIDEBAR_WIDTH : 0;
+
+    if (startWidth === endWidth) {
+      this.applySidebarLayout(endWidth);
+      return visible;
+    }
+
+    if (visible) {
+      this._sideBar.prepareToShow();
+      this._sideBar.setAnimatedBounds(
+        getSlidingSidebarBoundsForVisibleWidth(this._baseWindow, 0),
+      );
+    }
+
+    const startedAt = Date.now();
+
+    const tick = (): void => {
+      const progress = Math.min(
+        (Date.now() - startedAt) / SIDEBAR_ANIMATION_DURATION_MS,
+        1,
+      );
+      const easedProgress = visible
+        ? easeOutCubic(progress)
+        : easeInCubic(progress);
+      const nextWidth = Math.round(
+        startWidth + (endWidth - startWidth) * easedProgress,
+      );
+
+      this.applySidebarLayout(nextWidth, false);
+
+      if (progress < 1) {
+        this.sidebarAnimationTimer = setTimeout(
+          tick,
+          SIDEBAR_ANIMATION_FRAME_MS,
+        );
+        return;
+      }
+
+      this.applySidebarLayout(endWidth);
+      this.sidebarAnimationTimer = null;
+    };
+
+    tick();
+
+    return visible;
+  }
+
+  toggleSidebar(): boolean {
+    return this.setSidebarVisible(!this.sidebarTargetVisible);
+  }
+
   // Public method to update all bounds when sidebar is toggled
   updateAllBounds(): void {
-    this.updateTabBounds();
-    this._sideBar.updateBounds();
+    this.applySidebarLayout(this.currentSidebarWidth);
   }
 
   // Getter for sidebar to access from main process

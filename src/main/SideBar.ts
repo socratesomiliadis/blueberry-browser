@@ -1,5 +1,5 @@
 import { is } from "@electron-toolkit/utils";
-import { BaseWindow, WebContentsView } from "electron";
+import { BaseWindow, Rectangle, WebContentsView } from "electron";
 import { join } from "path";
 import { LLMClient } from "./LLMClient";
 import { getHiddenBounds, getSidebarBounds } from "./Layout";
@@ -50,6 +50,7 @@ export class SideBar {
   private setupBounds(): void {
     if (!this.isVisible) return;
 
+    this.webContentsView.setVisible(true);
     this.webContentsView.setBounds(getSidebarBounds(this.baseWindow));
   }
 
@@ -78,6 +79,7 @@ export class SideBar {
   hide(): void {
     this.isVisible = false;
     this.webContentsView.setBounds(getHiddenBounds());
+    this.webContentsView.setVisible(false);
   }
 
   toggle(): void {
@@ -90,5 +92,18 @@ export class SideBar {
 
   getIsVisible(): boolean {
     return this.isVisible;
+  }
+
+  prepareToShow(): void {
+    this.isVisible = true;
+    this.webContentsView.setVisible(true);
+  }
+
+  setAnimatedBounds(bounds: Rectangle): void {
+    this.webContentsView.setBounds(bounds);
+  }
+
+  finishHide(): void {
+    this.hide();
   }
 }

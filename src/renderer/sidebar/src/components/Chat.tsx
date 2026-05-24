@@ -6,6 +6,7 @@ import { ArrowUp, Plus } from "lucide-react";
 import { useChat } from "../contexts/ChatContext";
 import { cn } from "@common/lib/utils";
 import { Button } from "@common/components/Button";
+import BorderBeam, { type BorderBeamTheme } from "border-beam";
 
 interface Message {
   id: string;
@@ -166,7 +167,8 @@ const LoadingIndicator: React.FC = () => {
 const ChatInput: React.FC<{
   onSend: (message: string) => void;
   disabled: boolean;
-}> = ({ onSend, disabled }) => {
+  beamTheme: BorderBeamTheme;
+}> = ({ onSend, disabled, beamTheme }) => {
   const [value, setValue] = useState("");
   const [isFocused, setIsFocused] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -200,54 +202,60 @@ const ChatInput: React.FC<{
   };
 
   return (
-    <div
-      className={cn(
-        "w-full border p-3 rounded-3xl bg-background dark:bg-secondary",
-        "shadow-chat animate-spring-scale outline-none transition-all duration-200",
-        isFocused
-          ? "border-primary/20 dark:border-primary/30"
-          : "border-border",
-      )}
+    <BorderBeam
+      size="md"
+      colorVariant="mono"
+      duration={1.96}
+      strength={1}
+      active={isFocused}
+      theme={beamTheme}
     >
-      {/* Input Area */}
-      <div className="w-full px-3 py-2">
-        <div className="w-full flex items-start gap-3">
-          <div className="relative flex-1 overflow-hidden">
-            <textarea
-              ref={textareaRef}
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-              onFocus={() => setIsFocused(true)}
-              onBlur={() => setIsFocused(false)}
-              onKeyDown={handleKeyDown}
-              placeholder="Send a message..."
-              className="w-full resize-none outline-none bg-transparent 
+      <div
+        className={cn(
+          "w-full border border-border p-3 rounded-3xl bg-background dark:bg-secondary",
+          "shadow-chat animate-spring-scale outline-none transition-all duration-200",
+        )}
+      >
+        {/* Input Area */}
+        <div className="w-full px-3 py-2">
+          <div className="w-full flex items-start gap-3">
+            <div className="relative flex-1 overflow-hidden">
+              <textarea
+                ref={textareaRef}
+                value={value}
+                onChange={(e) => setValue(e.target.value)}
+                onFocus={() => setIsFocused(true)}
+                onBlur={() => setIsFocused(false)}
+                onKeyDown={handleKeyDown}
+                placeholder="Send a message..."
+                className="w-full resize-none outline-none bg-transparent 
                                      text-foreground placeholder:text-muted-foreground
                                      min-h-[24px] max-h-[200px]"
-              rows={1}
-              style={{ lineHeight: "24px" }}
-            />
+                rows={1}
+                style={{ lineHeight: "24px" }}
+              />
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Send Button */}
-      <div className="w-full flex items-center gap-1.5 px-1 mt-2 mb-1">
-        <div className="flex-1" />
-        <button
-          onClick={handleSubmit}
-          disabled={disabled || !value.trim()}
-          className={cn(
-            "size-9 rounded-full flex items-center justify-center",
-            "transition-all duration-200",
-            "bg-primary text-primary-foreground",
-            "hover:opacity-80 disabled:opacity-50",
-          )}
-        >
-          <ArrowUp className="size-5" />
-        </button>
+        {/* Send Button */}
+        <div className="w-full flex items-center gap-1.5 px-1 mt-2 mb-1">
+          <div className="flex-1" />
+          <button
+            onClick={handleSubmit}
+            disabled={disabled || !value.trim()}
+            className={cn(
+              "size-9 rounded-full flex items-center justify-center",
+              "transition-all duration-200",
+              "bg-primary text-primary-foreground",
+              "hover:opacity-80 disabled:opacity-50",
+            )}
+          >
+            <ArrowUp className="size-5" />
+          </button>
+        </div>
       </div>
-    </div>
+    </BorderBeam>
   );
 };
 
@@ -278,9 +286,10 @@ const ConversationTurnComponent: React.FC<{
 );
 
 // Main Chat Component
-export const Chat: React.FC = () => {
+export const Chat: React.FC<{ isDarkMode: boolean }> = ({ isDarkMode }) => {
   const { messages, isLoading, sendMessage, clearChat } = useChat();
   const scrollRef = useAutoScroll(messages);
+  const beamTheme: BorderBeamTheme = isDarkMode ? "dark" : "light";
 
   // Group messages into conversation turns
   const conversationTurns: ConversationTurn[] = [];
@@ -353,7 +362,11 @@ export const Chat: React.FC = () => {
 
       {/* Input Area */}
       <div className="p-4">
-        <ChatInput onSend={sendMessage} disabled={isLoading} />
+        <ChatInput
+          onSend={sendMessage}
+          disabled={isLoading}
+          beamTheme={beamTheme}
+        />
       </div>
     </div>
   );

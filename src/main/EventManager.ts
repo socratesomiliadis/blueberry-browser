@@ -155,9 +155,7 @@ export class EventManager {
   private handleSidebarEvents(): void {
     // Toggle sidebar
     ipcMain.handle("toggle-sidebar", () => {
-      this.mainWindow.sidebar.toggle();
-      this.mainWindow.updateAllBounds();
-      return true;
+      return this.mainWindow.toggleSidebar();
     });
 
     // Chat message

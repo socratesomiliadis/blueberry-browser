@@ -29,7 +29,11 @@ interface TopBarAPI {
   tabRunJs: (tabId: string, code: string) => Promise<unknown>;
 
   // Sidebar
-  toggleSidebar: () => Promise<void>;
+  toggleSidebar: () => Promise<boolean>;
+  onSidebarVisibilityChanged: (
+    callback: (state: { isVisible: boolean }) => void,
+  ) => void;
+  removeSidebarVisibilityChangedListener: () => void;
 
   // Window controls
   minimizeWindow: () => Promise<void>;

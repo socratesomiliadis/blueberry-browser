@@ -16,8 +16,8 @@ const SidebarContent: React.FC = () => {
   }, [isDarkMode]);
 
   return (
-    <div className="h-screen flex flex-col bg-background border-l border-border">
-      <Chat />
+    <div className="h-screen w-full flex flex-col bg-background border-l border-border">
+      <Chat isDarkMode={isDarkMode} />
     </div>
   );
 };

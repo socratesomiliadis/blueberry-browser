@@ -19,7 +19,7 @@ export const AddressBar: React.FC = () => {
   const [url, setUrl] = useState("");
   const [isEditing, setIsEditing] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   // Update URL when active tab changes
   useEffect(() => {
@@ -27,6 +27,16 @@ export const AddressBar: React.FC = () => {
       setUrl(activeTab.url || "");
     }
   }, [activeTab, isEditing]);
+
+  useEffect(() => {
+    window.topBarAPI.onSidebarVisibilityChanged(({ isVisible }) => {
+      setIsSidebarOpen(isVisible);
+    });
+
+    return () => {
+      window.topBarAPI.removeSidebarVisibilityChangedListener();
+    };
+  }, []);
 
   const handleSubmit = (e: React.FormEvent): void => {
     e.preventDefault();
@@ -111,11 +121,12 @@ export const AddressBar: React.FC = () => {
   };
 
   const toggleSidebar = (): void => {
-    setIsSidebarOpen(!isSidebarOpen);
-    // Send IPC event to toggle sidebar
-    if (window.topBarAPI) {
-      window.topBarAPI.toggleSidebar();
-    }
+    if (!window.topBarAPI) return;
+
+    window.topBarAPI
+      .toggleSidebar()
+      .then((isVisible) => setIsSidebarOpen(isVisible))
+      .catch((error) => console.error("Failed to toggle sidebar:", error));
   };
 
   return (

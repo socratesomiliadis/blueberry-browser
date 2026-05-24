@@ -32,6 +32,16 @@ const topBarAPI = {
 
   // Sidebar
   toggleSidebar: () => electronAPI.ipcRenderer.invoke("toggle-sidebar"),
+  onSidebarVisibilityChanged: (
+    callback: (state: { isVisible: boolean }) => void,
+  ) => {
+    electronAPI.ipcRenderer.on("sidebar-visibility-changed", (_, state) =>
+      callback(state),
+    );
+  },
+  removeSidebarVisibilityChangedListener: () => {
+    electronAPI.ipcRenderer.removeAllListeners("sidebar-visibility-changed");
+  },
 
   // Window controls
   minimizeWindow: () => electronAPI.ipcRenderer.invoke("window-minimize"),

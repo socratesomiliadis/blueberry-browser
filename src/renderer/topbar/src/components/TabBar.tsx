@@ -18,14 +18,7 @@ interface TabItemProps {
 
 const TabItem = React.forwardRef<HTMLDivElement, TabItemProps>(
   (
-    {
-      title,
-      favicon,
-      isActive,
-      isPinned = false,
-      onClose,
-      onActivate,
-    },
+    { title, favicon, isActive, isPinned = false, onClose, onActivate },
     ref,
   ) => {
     const baseClassName = cn(
@@ -34,7 +27,7 @@ const TabItem = React.forwardRef<HTMLDivElement, TabItemProps>(
       "app-region-no-drag", // Make tabs clickable
       isActive
         ? "bg-background shadow-tab dark:bg-background dark:shadow-none"
-        : "bg-transparent hover:bg-muted/50 dark:hover:bg-muted/30",
+        : "bg-transparent hover:bg-muted-foreground/20 dark:hover:bg-muted-foreground/20",
       isPinned ? "w-8 !px-0 justify-center" : "",
     );
 
