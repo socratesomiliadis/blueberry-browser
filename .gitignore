@@ -112,6 +112,9 @@ release-builds/
 logs/
 *.log
 
+# Local explanations and scratch notes
+explain/
+
 # Cache directories
 .cache/
 .parcel-cache/
