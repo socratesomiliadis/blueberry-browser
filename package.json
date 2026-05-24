@@ -30,6 +30,7 @@
     "class-variance-authority": "^0.7.1",
     "dotenv": "^17.2.2",
     "lucide-react": "^0.544.0",
+    "motion": "^12.40.0",
     "react-markdown": "^10.1.0",
     "remark-breaks": "^4.0.0",
     "remark-gfm": "^4.0.1"
