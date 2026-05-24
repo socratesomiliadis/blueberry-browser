@@ -8,6 +8,8 @@ interface TabInfo {
 }
 
 interface TopBarAPI {
+  platform: NodeJS.Platform;
+
   // Tab management
   createTab: (
     url?: string,
@@ -28,6 +30,16 @@ interface TopBarAPI {
 
   // Sidebar
   toggleSidebar: () => Promise<void>;
+
+  // Window controls
+  minimizeWindow: () => Promise<void>;
+  toggleMaximizeWindow: () => Promise<{ isMaximized: boolean }>;
+  closeWindow: () => Promise<void>;
+  getWindowState: () => Promise<{ isMaximized: boolean }>;
+  onWindowStateChanged: (
+    callback: (state: { isMaximized: boolean }) => void,
+  ) => void;
+  removeWindowStateChangedListener: () => void;
 }
 
 declare global {

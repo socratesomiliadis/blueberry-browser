@@ -13,15 +13,23 @@ export class Window {
   private _sideBar: SideBar;
 
   constructor() {
+    const platformWindowOptions =
+      process.platform === "darwin"
+        ? {
+            titleBarStyle: "hidden" as const,
+            trafficLightPosition: { x: 15, y: 13 },
+          }
+        : {
+            frame: false,
+          };
+
     // Create the browser window.
     this._baseWindow = new BaseWindow({
       width: 1000,
       height: 800,
       show: true,
       autoHideMenuBar: false,
-      titleBarStyle: "hidden",
-      ...(process.platform !== "darwin" ? { titleBarOverlay: true } : {}),
-      trafficLightPosition: { x: 15, y: 13 },
+      ...platformWindowOptions,
     });
 
     this._baseWindow.setMinimumSize(1000, 800);

@@ -22,6 +22,9 @@ export class EventManager {
     // Dark mode events
     this.handleDarkModeEvents();
 
+    // Window chrome events
+    this.handleWindowEvents();
+
     // Debug events
     this.handleDebugEvents();
   }
@@ -218,9 +221,52 @@ export class EventManager {
     });
   }
 
+  private handleWindowEvents(): void {
+    ipcMain.handle("window-minimize", () => {
+      this.mainWindow.minimize();
+    });
+
+    ipcMain.handle("window-toggle-maximize", () => {
+      if (this.mainWindow.isMaximized()) {
+        this.mainWindow.unmaximize();
+      } else {
+        this.mainWindow.maximize();
+      }
+
+      return this.getWindowState();
+    });
+
+    ipcMain.handle("window-close", () => {
+      this.mainWindow.close();
+    });
+
+    ipcMain.handle("window-get-state", () => this.getWindowState());
+
+    this.mainWindow.baseWindow.on("maximize", () =>
+      this.broadcastWindowState(),
+    );
+    this.mainWindow.baseWindow.on("unmaximize", () =>
+      this.broadcastWindowState(),
+    );
+    this.mainWindow.baseWindow.on("restore", () => this.broadcastWindowState());
+  }
+
   private handleDebugEvents(): void {
     // Ping test
     ipcMain.on("ping", () => console.log("pong"));
+  }
+
+  private getWindowState(): { isMaximized: boolean } {
+    return {
+      isMaximized: this.mainWindow.isMaximized(),
+    };
+  }
+
+  private broadcastWindowState(): void {
+    this.mainWindow.topBar.view.webContents.send(
+      "window-state-changed",
+      this.getWindowState(),
+    );
   }
 
   private broadcastDarkMode(sender: WebContents, isDarkMode: boolean): void {

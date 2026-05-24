@@ -88,9 +88,9 @@ export const TabBar: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 overflow-x-hidden flex items-center">
+    <div className="min-w-0 flex-1 overflow-x-hidden flex items-center">
       {/* macOS traffic lights spacing */}
-      <div className="pl-20" />
+      {window.topBarAPI.platform === "darwin" && <div className="pl-20" />}
 
       {/* Tabs */}
       <div className="flex-1 overflow-x-auto flex">

@@ -2,14 +2,16 @@ import React from "react";
 import { BrowserProvider } from "./contexts/BrowserContext";
 import { TabBar } from "./components/TabBar";
 import { AddressBar } from "./components/AddressBar";
+import { WindowControls } from "./components/WindowControls";
 
 export const TopBarApp: React.FC = () => {
   return (
     <BrowserProvider>
-      <div className="flex flex-col bg-background select-none bg-red-500">
+      <div className="flex flex-col bg-background select-none">
         {/* Tab Bar */}
-        <div className="w-full h-10 pr-2 flex items-center app-region-drag bg-muted dark:bg-muted">
+        <div className="w-full h-10 flex items-center app-region-drag bg-muted dark:bg-muted">
           <TabBar />
+          <WindowControls />
         </div>
 
         {/* Toolbar */}

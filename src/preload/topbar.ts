@@ -3,6 +3,8 @@ import { electronAPI } from "@electron-toolkit/preload";
 
 // TopBar specific APIs
 const topBarAPI = {
+  platform: process.platform,
+
   // Tab management
   createTab: (url?: string) =>
     electronAPI.ipcRenderer.invoke("create-tab", url),
@@ -30,6 +32,23 @@ const topBarAPI = {
 
   // Sidebar
   toggleSidebar: () => electronAPI.ipcRenderer.invoke("toggle-sidebar"),
+
+  // Window controls
+  minimizeWindow: () => electronAPI.ipcRenderer.invoke("window-minimize"),
+  toggleMaximizeWindow: () =>
+    electronAPI.ipcRenderer.invoke("window-toggle-maximize"),
+  closeWindow: () => electronAPI.ipcRenderer.invoke("window-close"),
+  getWindowState: () => electronAPI.ipcRenderer.invoke("window-get-state"),
+  onWindowStateChanged: (
+    callback: (state: { isMaximized: boolean }) => void,
+  ) => {
+    electronAPI.ipcRenderer.on("window-state-changed", (_, state) =>
+      callback(state),
+    );
+  },
+  removeWindowStateChangedListener: () => {
+    electronAPI.ipcRenderer.removeAllListeners("window-state-changed");
+  },
 };
 
 // Use `contextBridge` APIs to expose Electron APIs to
