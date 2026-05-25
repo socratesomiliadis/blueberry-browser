@@ -86,6 +86,6 @@ $ pnpm install
 $ pnpm dev
 ```
 
-**Add an OpenAI API key to `.env`** in the root folder.
+**Add an Anthropic API key to `.env`** in the root folder.
 
 Strawberry will reimburse LLM costs, so go crazy! _(Please not more than a few hundred dollars though!)_
