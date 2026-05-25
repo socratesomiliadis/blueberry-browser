@@ -1,4 +1,11 @@
 import { ElectronAPI } from "@electron-toolkit/preload";
+import type {
+  ApprovalRequest,
+  GeneratedArtifact,
+  PilotExportRequest,
+  PilotExportResult,
+  TraceRun,
+} from "../shared/agent";
 
 interface ChatRequest {
   message: string;
@@ -40,6 +47,26 @@ interface SidebarAPI {
 
   // Tab information
   getActiveTabInfo: () => Promise<TabInfo | null>;
+
+  // Pilot functionality
+  startPilotRun: (goal: string) => Promise<TraceRun>;
+  pausePilotRun: () => Promise<TraceRun | null>;
+  resumePilotRun: () => Promise<TraceRun | null>;
+  stopPilotRun: () => Promise<TraceRun | null>;
+  approvePilotAction: () => Promise<TraceRun | null>;
+  rejectPilotAction: () => Promise<TraceRun | null>;
+  getCurrentPilotRun: () => Promise<TraceRun | null>;
+  exportPilotArtifact: (
+    request: PilotExportRequest,
+  ) => Promise<PilotExportResult>;
+  onPilotRunUpdated: (callback: (run: TraceRun) => void) => void;
+  onPilotApprovalRequested: (
+    callback: (approval: ApprovalRequest) => void,
+  ) => void;
+  onPilotArtifactGenerated: (
+    callback: (artifact: GeneratedArtifact) => void,
+  ) => void;
+  removePilotListeners: () => void;
 }
 
 declare global {

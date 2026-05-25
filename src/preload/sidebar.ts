@@ -1,5 +1,11 @@
 import { contextBridge } from "electron";
 import { electronAPI } from "@electron-toolkit/preload";
+import type {
+  ApprovalRequest,
+  GeneratedArtifact,
+  PilotExportRequest,
+  TraceRun,
+} from "../shared/agent";
 
 interface ChatRequest {
   message: string;
@@ -52,6 +58,41 @@ const sidebarAPI = {
 
   // Tab information
   getActiveTabInfo: () => electronAPI.ipcRenderer.invoke("get-active-tab-info"),
+
+  // Pilot functionality
+  startPilotRun: (goal: string) =>
+    electronAPI.ipcRenderer.invoke("pilot-start-run", goal),
+  pausePilotRun: () => electronAPI.ipcRenderer.invoke("pilot-pause-run"),
+  resumePilotRun: () => electronAPI.ipcRenderer.invoke("pilot-resume-run"),
+  stopPilotRun: () => electronAPI.ipcRenderer.invoke("pilot-stop-run"),
+  approvePilotAction: () =>
+    electronAPI.ipcRenderer.invoke("pilot-approve-action"),
+  rejectPilotAction: () =>
+    electronAPI.ipcRenderer.invoke("pilot-reject-action"),
+  getCurrentPilotRun: () =>
+    electronAPI.ipcRenderer.invoke("pilot-get-current-run"),
+  exportPilotArtifact: (request: PilotExportRequest) =>
+    electronAPI.ipcRenderer.invoke("pilot-export-artifact", request),
+  onPilotRunUpdated: (callback: (run: TraceRun) => void) => {
+    electronAPI.ipcRenderer.on("pilot-run-updated", (_, run) => callback(run));
+  },
+  onPilotApprovalRequested: (callback: (approval: ApprovalRequest) => void) => {
+    electronAPI.ipcRenderer.on("pilot-approval-requested", (_, approval) =>
+      callback(approval),
+    );
+  },
+  onPilotArtifactGenerated: (
+    callback: (artifact: GeneratedArtifact) => void,
+  ) => {
+    electronAPI.ipcRenderer.on("pilot-artifact-generated", (_, artifact) =>
+      callback(artifact),
+    );
+  },
+  removePilotListeners: () => {
+    electronAPI.ipcRenderer.removeAllListeners("pilot-run-updated");
+    electronAPI.ipcRenderer.removeAllListeners("pilot-approval-requested");
+    electronAPI.ipcRenderer.removeAllListeners("pilot-artifact-generated");
+  },
 };
 
 // Use `contextBridge` APIs to expose Electron APIs to

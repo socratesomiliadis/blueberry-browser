@@ -1,12 +1,19 @@
 import { ipcMain, WebContents } from "electron";
 import type { Window } from "./Window";
 import { BLUEBERRY_START_URL, type BrowserSettings } from "../shared/profile";
+import { AgentOrchestrator } from "./agent/AgentOrchestrator";
+import type { PilotExportRequest } from "../shared/agent";
 
 export class EventManager {
   private mainWindow: Window;
+  private pilot: AgentOrchestrator;
 
   constructor(mainWindow: Window) {
     this.mainWindow = mainWindow;
+    this.pilot = new AgentOrchestrator(
+      mainWindow,
+      mainWindow.sidebar.view.webContents,
+    );
     this.setupEventHandlers();
   }
 
@@ -16,6 +23,9 @@ export class EventManager {
 
     // Sidebar events
     this.handleSidebarEvents();
+
+    // Pilot events
+    this.handlePilotEvents();
 
     // Page content events
     this.handlePageContentEvents();
@@ -178,6 +188,43 @@ export class EventManager {
     ipcMain.handle("sidebar-get-messages", () => {
       return this.mainWindow.sidebar.client.getMessages();
     });
+  }
+
+  private handlePilotEvents(): void {
+    ipcMain.handle("pilot-start-run", (_, goal: string) => {
+      return this.pilot.startRun(goal);
+    });
+
+    ipcMain.handle("pilot-pause-run", () => {
+      return this.pilot.pauseRun();
+    });
+
+    ipcMain.handle("pilot-resume-run", () => {
+      return this.pilot.resumeRun();
+    });
+
+    ipcMain.handle("pilot-stop-run", () => {
+      return this.pilot.stopRun();
+    });
+
+    ipcMain.handle("pilot-approve-action", () => {
+      return this.pilot.approveAction();
+    });
+
+    ipcMain.handle("pilot-reject-action", () => {
+      return this.pilot.rejectAction();
+    });
+
+    ipcMain.handle("pilot-get-current-run", () => {
+      return this.pilot.getCurrentRun();
+    });
+
+    ipcMain.handle(
+      "pilot-export-artifact",
+      (_, request: PilotExportRequest) => {
+        return this.pilot.exportArtifact(request);
+      },
+    );
   }
 
   private handlePageContentEvents(): void {
@@ -383,6 +430,7 @@ export class EventManager {
 
   // Clean up event listeners
   public cleanup(): void {
+    this.pilot.stopRun();
     ipcMain.removeAllListeners();
   }
 }
